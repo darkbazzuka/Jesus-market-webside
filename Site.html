@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Jesus market</title>
+    <style>
+        body {
+            background-color: #ffffff;
+            color: #000000;
+            font-family: "Courier New", Courier, monospace;
+            margin: 10px;
+            font-size: 13px;
+        }
+        h1 {
+            font-family: "Times New Roman", Times, serif;
+            font-size: 20px;
+            margin: 0 0 5px 0;
+        }
+        hr {
+            border: 0;
+            border-top: 1px solid #000000;
+            margin: 5px 0;
+        }
+        .ad-banner {
+            border: 1px solid #000000;
+            background: #eeeeee;
+            padding: 5px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .ad-image {
+            max-height: 150px;
+            max-width: 100%;
+            display: block;
+            margin: 0 auto;
+        }
+        .search-box {
+            margin: 10px 0;
+        }
+        .search-box input {
+            font-family: "Courier New", Courier, monospace;
+            font-size: 12px;
+            padding: 2px;
+            width: 200px;
+        }
+        .search-box button {
+            font-family: "Courier New", Courier, monospace;
+            font-size: 12px;
+            padding: 2px 6px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        td, th {
+            text-align: left;
+            padding: 2px 5px;
+        }
+        a {
+            color: #0000ee;
+            text-decoration: underline;
+        }
+        a:visited {
+            color: #551a8b;
+        }
+        .icon {
+            width: 50px;
+        }
+        .embedded-image {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #000;
+            margin: 10px 0;
+            display: block;
+        }
+        address {
+            font-family: "Times New Roman", Times, serif;
+            font-style: italic;
+            font-size: 11px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ad Banner -->
+    <div id="ad-banner" class="ad-banner">
+        <div id="ad-container">[Loading ad...]</div>
+    </div>
+
+    <!-- Browser View -->
+    <div id="browser-view">
+        <h1 id="dir-heading">Index of /</h1>
+        
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="Search item...">
+            <button onclick="performSearch()">Search</button>
+            <button onclick="clearSearch()" id="clear-btn" style="display:none;">Reset</button>
+        </div>
+
+        <hr>
+        <table>
+            <tr>
+                <th class="icon">Type</th>
+                <th>Name</th>
+                <th style="width: 80px;">Size</th>
+            </tr>
+            <tbody id="file-table-body">
+                <tr><td colspan="3">Scanning directory...</td></tr>
+            </tbody>
+        </table>
+        <hr>
+    </div>
+
+    <!-- Reader View -->
+    <div id="reader-view" style="display:none;">
+        <h1><a href="javascript:void(0)" onclick="closeReader()">[Parent Directory]</a> &mdash; <span id="reader-title"></span></h1>
+        <hr>
+        <div id="reader-body" style="white-space: pre-wrap; line-height: 1.4;"></div>
+        <hr>
+    </div>
+
+    <address>WELCOME TO THE JESUS MARKET. Where the goods are for anyone to make WERE NOT RESPONSIBLE FOR ANY DAMAGES TO YOU OR OTHERS. Thanks and happy building :D</address>
+
+    <script type="text/javascript">
+        var USERNAME = "darkbazzuka";
+        var REPO = "Jesus-market-recipes";
+        var BRANCH = "Html";
+        
+        // PASTE YOUR GITHUB TOKEN HERE:
+        var GITHUB_TOKEN = "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"; 
+
+        var tableBodyEl = document.getElementById("file-table-body");
+        var dirHeadingEl = document.getElementById("dir-heading");
+        var searchInputEl = document.getElementById("search-input");
+        var clearBtnEl = document.getElementById("clear-btn");
+        var browserViewEl = document.getElementById("browser-view");
+        var readerViewEl = document.getElementById("reader-view");
+        var readerTitleEl = document.getElementById("reader-title");
+        var readerBodyEl = document.getElementById("reader-body");
+        var adContainerEl = document.getElementById("ad-container");
+
+        var validTree = [];
+        var currentFolder = "";
+        var adImages = [];
+        var adInterval = null;
+        var searchActive = false;
+
+        function init() {
+            var url = "https://api.github.com/repos/" + USERNAME + "/" + REPO + "/git/trees/" + BRANCH + "?recursive=1";
+            
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", url, true);
+            if (GITHUB_TOKEN !== "") {
+                xhr.setRequestHeader("Authorization", "token " + GITHUB_TOKEN);
+            }
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            
+                            // Parse ads
+                            for (var i = 0; i < data.tree.length; i++) {
+                                var item = data.tree[i];
+                                if (item.type === "blob" && item.path.toLowerCase().slice(-4) === ".ads") {
+                                    var adUrl = "https://raw.githubusercontent.com/" + USERNAME + "/" + REPO + "/" + BRANCH + "/" + item.path;
+                                    if (GITHUB_TOKEN !== "") {
+                                        adUrl += "?token=" + GITHUB_TOKEN;
+                                    }
+                                    adImages.push(adUrl);
+                                }
+                            }
+                            setupAds();
+
+                            // Filter tree for RECIPE folders and .txt files
+                            for (var j = 0; j < data.tree.length; j++) {
+                                var node = data.tree[j];
+                                var parts = node.path.split("/");
+                                var name = parts[parts.length - 1];
+                                var lowerName = name.toLowerCase();
+
+                                if (node.type === "tree") {
+                                    var allRecipes = true;
+                                    for (var p = 0; p < parts.length; p++) {
+                                        if (parts[p].toLowerCase().slice(-6) !== "recipe") {
+                                            allRecipes = false;
+                                            break;
+                                        }
+                                    }
+                                    if (allRecipes) validTree.push(node);
+                                } else if (node.type === "blob") {
+                                    if (lowerName.slice(-4) !== ".txt" || lowerName.indexOf("readme") !== -1) continue;
+                                    var folders = parts.slice(0, -1);
+                                    var validParent = true;
+                                    for (var f = 0; f < folders.length; f++) {
+                                        if (folders[f].toLowerCase().slice(-6) !== "recipe") {
+                                            validParent = false;
+                                            break;
+                                        }
+                                    }
+                                    if (validParent) validTree.push(node);
+                                }
+                            }
+
+                            renderDirectory();
+                        } catch (e) {
+                            tableBodyEl.innerHTML = '<tr><td colspan="3" style="color:red;">Parse error.</td></tr>';
+                        }
+                    } else {
+                        tableBodyEl.innerHTML = '<tr><td colspan="3" style="color:red;">Connection failed (Check token permissions).</td></tr>';
+                    }
+                }
+            };
+            xhr.send();
+        }
+
+        function renderDirectory() {
+            dirHeadingEl.innerHTML = "Index of /" + currentFolder;
+            tableBodyEl.innerHTML = "";
+
+            if (currentFolder !== "" && !searchActive) {
+                var trUp = document.createElement("tr");
+                trUp.innerHTML = '<td class="icon">[DIR]</td><td><a href="javascript:void(0)" onclick="goUp()">Parent Directory/</a></td><td>-</td>';
+                tableBodyEl.appendChild(trUp);
+            }
+
+            var itemsToShow = [];
+
+            if (searchActive) {
+                var query = searchInputEl.value.toLowerCase();
+                for (var i = 0; i < validTree.length; i++) {
+                    var rawName = validTree[i].path.split("/").pop();
+                    var cleanName = rawName.replace(/\.txt$/i, "").toLowerCase();
+                    if (cleanName.indexOf(query) !== -1) {
+                        itemsToShow.push(validTree[i]);
+                    }
+                }
+            } else {
+                for (var j = 0; j < validTree.length; j++) {
+                    var item = validTree[j];
+                    var parts = item.path.split("/");
+                    var parentPath = parts.slice(0, -1).join("/");
+                    if (parentPath === currentFolder) {
+                        itemsToShow.push(item);
+                    }
+                }
+            }
+
+            if (itemsToShow.length === 0) {
+                tableBodyEl.innerHTML = '<tr><td colspan="3"><i>No entries found.</i></td></tr>';
+                return;
+            }
+
+            for (var k = 0; k < itemsToShow.length; k++) {
+                var entry = itemsToShow[k];
+                var tr = document.createElement("tr");
+                var segments = entry.path.split("/");
+                var fileName = segments[segments.length - 1];
+
+                if (entry.type === "tree") {
+                    tr.innerHTML = '<td class="icon">[DIR]</td><td><a href="javascript:void(0)" onclick="openFolder(\'' + entry.path + '\')">' + fileName + '/</a></td><td>-</td>';
+                } else {
+                    var displayName = fileName.replace(/\.txt$/i, "");
+                    var sizeStr = entry.size ? entry.size + " B" : "-";
+                    tr.innerHTML = '<td class="icon">[TXT]</td><td><a href="javascript:void(0)" onclick="openFile(\'' + entry.path + '\', \'' + displayName + '\')">' + displayName + '</a></td><td>' + sizeStr + '</td>';
+                }
+                tableBodyEl.appendChild(tr);
+            }
+        }
+
+        function openFolder(path) {
+            currentFolder = path;
+            searchActive = false;
+            searchInputEl.value = "";
+            clearBtnEl.style.display = "none";
+            renderDirectory();
+        }
+
+        function goUp() {
+            var parts = currentFolder.split("/");
+            parts.pop();
+            currentFolder = parts.join("/");
+            renderDirectory();
+        }
+
+        function performSearch() {
+            if (searchInputEl.value.trim() === "") return;
+            searchActive = true;
+            clearBtnEl.style.display = "inline";
+            renderDirectory();
+        }
+
+        function clearSearch() {
+            searchInputEl.value = "";
+            searchActive = false;
+            clearBtnEl.style.display = "none";
+            renderDirectory();
+        }
+
+        function openFile(path, displayName) {
+            browserViewEl.style.display = "none";
+            readerViewEl.style.display = "block";
+            readerTitleEl.innerHTML = displayName;
+            readerBodyEl.innerHTML = "Loading file...";
+
+            var fileUrl = "https://raw.githubusercontent.com/" + USERNAME + "/" + REPO + "/" + BRANCH + "/" + path;
+            var rxhr = new XMLHttpRequest();
+            rxhr.open("GET", fileUrl, true);
+            if (GITHUB_TOKEN !== "") {
+                rxhr.setRequestHeader("Authorization", "token " + GITHUB_TOKEN);
+            }
+            rxhr.onreadystatechange = function() {
+                if (rxhr.readyState === 4) {
+                    if (rxhr.status === 200) {
+                        var text = rxhr.responseText;
+                        readerBodyEl.innerHTML = "";
+                        var lines = text.split("\n");
+
+                        for (var i = 0; i < lines.length; i++) {
+                            var line = lines[i];
+                            var trimmed = line.replace(/^\s+|\s+$/g, "");
+                            
+                            // Skip THUMBIMAGE line
+                            if (trimmed.toUpperCase().indexOf("THUMBIMAGE:") === 0) continue;
+
+                            // Check RENDER IMAGE
+                            if (trimmed.toUpperCase().indexOf("RENDER IMAGE") === 0) {
+                                var match = trimmed.match(/\*(.*?)\*/);
+                                if (match && match[1]) {
+                                    var img = document.createElement("img");
+                                    img.src = match[1];
+                                    img.className = "embedded-image";
+                                    readerBodyEl.appendChild(img);
+                                }
+                            } else {
+                                var p = document.createElement("div");
+                                p.innerText = line === "" ? "\u00A0" : line;
+                                readerBodyEl.appendChild(p);
+                            }
+                        }
+                    } else {
+                        readerBodyEl.innerHTML = "Error loading file.";
+                    }
+                }
+            };
+            rxhr.send();
+        }
+
+        function closeReader() {
+            readerViewEl.style.display = "none";
+            browserViewEl.style.display = "block";
+        }
+
+        function setupAds() {
+            if (adImages.length === 0) {
+                document.getElementById("ad-banner").style.display = "none";
+                return;
+            }
+            function rotate() {
+                var rand = adImages[Math.floor(Math.random() * adImages.length)];
+                adContainerEl.innerHTML = '<img src="' + rand + '" class="ad-image" alt="Ad">';
+            }
+            rotate();
+            if (adInterval) clearInterval(adInterval);
+            adInterval = setInterval(rotate, 20000);
+        }
+
+        init();
+    </script>
+</body>
+</html>
